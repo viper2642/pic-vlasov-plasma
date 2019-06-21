@@ -1,4 +1,3 @@
-#!/usr/bin/python
 
 import numpy as np
 from numpy.linalg import norm
