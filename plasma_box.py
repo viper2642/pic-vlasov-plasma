@@ -29,6 +29,7 @@ class Plasma:
     t : time
     rtol : ODE solver relative tolerance
     """
+    
     def __init__(self,nparticles=10,temperature=1.,electron_mass_ratio=1./5.,rtol=1.e-6):
         self.n = int(nparticles)
         self.T = temperature
