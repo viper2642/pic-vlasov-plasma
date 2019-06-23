@@ -92,7 +92,7 @@ class Efield:
         u=np.ones(N-1)
         l=np.ones(N-1)
         g=-2.*np.ones(N)
-        rho=self.dx**2*np.copy(self.charge_density[1:-1])
+        rho=4.*np.pi*self.dx**2*np.copy(self.charge_density[1:-1])
         
         # Dirichlet boundary condition on the right
         self.potential[-1]=self.V*np.cos(self.t*self.omega)
