@@ -1,5 +1,15 @@
 #!/usr/bin/python
 
+"""
+Driver for brute-force plasma box simulation
+
+author: David Pfefferlé
+email: david.pfefferle@uwa.edu.au
+website: http://viper2642.github.com
+license: GPL-3.0
+Please feel free to use and modify this, but keep the above information. Thanks!
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as anim
@@ -15,44 +25,42 @@ waittime=30 # ms
 ## plasma initialisation
 plas=Plasma(npart,temperature=plasma_temperature,electron_mass_ratio=1./5.,rtol=1.e-5)
 
-
-## plotting
+## cosmetics
 plt.rcParams.update({'font.size': 16})
-fig,(axp,axr) = plt.subplots(1,2,figsize=(16,8))
+fig, alist = plt.subplots(1,2,figsize=(16,8))
 fig.subplots_adjust(left=0.05, bottom=0.08, right=0.99, top=0.99, wspace=None, hspace=None)
-# plasma box
-axp.set_xlim(0, 1)
-axp.set_ylim(0, 1)
-axp.set_aspect('equal', adjustable='box')
-axp.set_xlabel('x')
-axp.set_ylabel('y')
+# plasma box 
+alist[0].set_xlim(0, 1)
+alist[0].set_ylim(0, 1)
+alist[0].set_aspect('equal', adjustable='box')
+alist[0].set_xlabel('x')
+alist[0].set_ylabel('y')
 # energy recording
-axr.set_autoscale_on
-axr.set_xlabel('t')
-axr.set_ylabel('energy')
-axr.set_yticklabels([])
-axr.set_xticklabels([])
+alist[1].set_autoscale_on
+alist[1].set_xlabel('t')
+alist[1].set_ylabel('energy')
+alist[1].set_yticklabels([])
+alist[1].set_xticklabels([])
+alist[1].legend(loc="lower right")
+
 ## plot initialisation
-elec, = axp.plot([],[],'.b',markersize=10)
-ions, = axp.plot([],[],'.r',markersize=20)
-kin,  = axr.plot([],[],'-r',label='kinetic')
-pot,  = axr.plot([],[],'-b',label='potential')
-erg,  = axr.plot([],[],'-k',label='total')
-axr.legend()
+elec, = alist[0].plot([],[],'.b',markersize=10)
+ions, = alist[0].plot([],[],'.r',markersize=20)
+kin,  = alist[1].plot([],[],'-r',label='kinetic')
+pot,  = alist[1].plot([],[],'-b',label='potential')
+erg,  = alist[1].plot([],[],'-k',label='total')
+
+plist=(elec,ions,kin,pot,erg)
 
 # initial state of plot
 def init():
-    elec.set_data([],[])
-    ions.set_data([],[])
-    kin.set_data([],[])
-    pot.set_data([],[])
-    erg.set_data([],[])
-    
-    return elec,ions,kin,pot,erg
+    for p in plist:
+        p.set_data([],[])
+    return plist
 
 # animation function
 def animate(i):
-    global dt, axp, axr, fig, plas
+    global dt, fig, alist, plas
     
     plas.push(dt)
         
@@ -70,10 +78,10 @@ def animate(i):
     pot.set_xdata(np.append(pot.get_xdata(),plas.t))
     pot.set_ydata(np.append(pot.get_ydata(),plas.poterg()-plas.V0))
     
-    axr.relim()
-    axr.autoscale_view()
+    alist[1].relim()
+    alist[1].autoscale_view()
              
-    return elec,ions,kin,pot,erg
+    return plist
 
 ani = anim.FuncAnimation(fig,animate,interval=waittime,blit=True,init_func=init)
     
