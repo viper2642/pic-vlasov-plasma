@@ -10,6 +10,8 @@ Please feel free to use and modify this, but keep the above information. Thanks!
 
 import numpy as np
 
+bcs_options={"Dirichlet":0,"Neumann":1}
+
 class Efield:
     """ Representation of the electric field
 
@@ -28,7 +30,7 @@ class Efield:
     
     """
         
-    def __init__(self,nintervals=100,voltage=0.,frequency=0.):
+    def __init__(self,nintervals=100,voltage=0.,frequency=0.,bcs="Dirichlet"):
         """ 
         Parameters
         ----------
@@ -51,6 +53,9 @@ class Efield:
         self.potential=np.zeros(self.nmesh)
         self.charge_density=np.zeros(self.nmesh)
         self.efield=np.zeros(nintervals)
+
+        self.bcs=bcs_options[bcs]
+        
         
     def eval_potential(self,x):
         """ evaluate the potential at x using linear interpolation"""
@@ -92,15 +97,21 @@ class Efield:
         u=np.ones(N-1)
         l=np.ones(N-1)
         g=-2.*np.ones(N)
+        
         rho=4.*np.pi*self.dx**2*np.copy(self.charge_density[1:-1])
         
         # Dirichlet boundary condition on the right
         self.potential[-1]=self.V*np.cos(self.t*self.omega)
         rho[-1]-=self.potential[-1]
+
+        if(self.bcs):
+            #Neumann on the left
+            g[0]=-1
         
         #initial step
         u[0] = u[0]/g[0]
         rho[0] = rho[0]/g[0]
+
         # first pass
         for i in range(1,N-1):
             u[i] = u[i]/(g[i]-u[i-1]*l[i-1])
@@ -113,6 +124,11 @@ class Efield:
         for i in range(N-2,-1,-1):
             self.potential[i+1] = rho[i] - u[i]*self.potential[i+2]
 
+
+        if(self.bcs):
+            # Neumann
+            self.potential[0]=self.potential[1]
+        
         # compute gradient of potential on half-mesh
         self.update_gradient()
         

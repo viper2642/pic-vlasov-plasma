@@ -18,8 +18,8 @@ from vlasov import Efield,Species,Plasma
 # simulation parameters
 dt=5.e-3
 tfin=2.
-waittime=1 # ms
-substepping=1
+waittime=20 # ms
+substepping=2
 
 e=Efield(nintervals=50,voltage=1.,frequency=0.)
 ion=Species(nparticles=1000,mass=1.,charge=1.,temperature=1.)
