@@ -16,18 +16,19 @@ import matplotlib.animation as anim
 from vlasov import Efield,Species,Plasma
 
 # simulation parameters
-dt=1.e-4
+dt=5.e-3
 tfin=2.
-waittime=30 # ms
+waittime=1 # ms
+substepping=1
 
-e=Efield(nintervals=20,voltage=1.,frequency=1000.)
+e=Efield(nintervals=50,voltage=1.,frequency=0.)
 ion=Species(nparticles=1000,mass=1.,charge=1.,temperature=1.)
-ele=Species(nparticles=1000,mass=1/10.,charge=-1.,temperature=1.)
+ele=Species(nparticles=1000,mass=1./20.,charge=-1.,temperature=1.)
 plas=Plasma(ions=ion,electrons=ele,electric_field=e)
 
 # cosmetics
 plt.rcParams.update({'font.size': 16})
-fig,alist = plt.subplots(1,4,figsize=(18,6))
+fig,alist = plt.subplots(1,4,figsize=(12,5))
 fig.subplots_adjust(left=0.05, bottom=0.08, right=0.99, top=0.99, wspace=None, hspace=None)
 
 # plasma box
@@ -77,7 +78,7 @@ def animate(i):
     global dt, fig, alist, plas
 
     # subsampling
-    for i in range(0,10):
+    for i in range(0,substepping):
         plas.evolve(dt)
     
     # electric field plotting

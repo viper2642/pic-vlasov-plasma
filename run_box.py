@@ -16,12 +16,12 @@ import matplotlib.animation as anim
 from plasma_box import Plasma
 
 ## simulation parameter
-npart=20
+npart=100
 plasma_temperature=1.
 dt=1.e-4
 tfin=1.
 waittime=30 # ms
-subsampling=10
+subsampling=100
 
 ## plasma initialisation
 plas=Plasma(npart,temperature=plasma_temperature,electron_mass_ratio=1./5.,rtol=1.e-5)

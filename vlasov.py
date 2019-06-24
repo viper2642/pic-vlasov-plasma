@@ -119,7 +119,6 @@ class Efield:
 
     def update_gradient(self):
         """ update the gradient of potential on half-mesh points. """
-
         self.efield=np.diff(self.potential)/self.dx
 
         
@@ -142,7 +141,7 @@ class Species:
     
     """
     
-    def __init__(self,nparticles=100,mass=1.,charge=1.,temperature=1.):
+    def __init__(self,nparticles=100,mass=1.,charge=1.,temperature=1.,wave_amplitude=0.,mode_number=1):
         """" 
         Parameters
         ----------
@@ -165,6 +164,9 @@ class Species:
         self.y=np.asarray([np.random.rand(self.n),self.vth*np.random.randn(self.n)]).T
         self.w=np.ones(self.n)/self.n
 
+        # adding a small wave perturbations
+        self.w+=wave_amplitude*np.cos(2*np.pi*self.y[:,0]*mode_number)
+
     def pos(self):
         """ position of particles """
         return self.y[:,0]
@@ -185,7 +187,10 @@ class Species:
         self.y[:,0]+=dt*self.y[:,1]
         self.y[:,1]+=0.5*dt*self.q/self.m*efield.eval_field(self.pos())
 
-        # periodise
+        self.periodise()
+
+    def periodise(self):
+        """ retain particles within the unit interval (periodic)."""
         self.y[:,0]%=1.
     
     
@@ -196,7 +201,8 @@ class Plasma:
         self.E=electric_field
         self.ion=ions
         self.ele=electrons
-        
+
+        self.E.charge_density.fill(0.)
         self.E.deposit(self.ion)
         self.E.deposit(self.ele)
         self.E.solve()
@@ -210,6 +216,7 @@ class Plasma:
         """
         self.ion.push(dt,self.E)
         self.ele.push(dt,self.E)
+        self.E.charge_density.fill(0.)
         self.E.deposit(self.ion)
         self.E.deposit(self.ele)
         self.E.solve()
