@@ -60,14 +60,17 @@ class Efield:
     def eval_potential(self,x):
         """ evaluate the potential at x using linear interpolation"""
         return np.interp(x,self.grid,self.potential)
+        #return np.cos(x*2.*np.pi)
 
     def eval_field(self,x):
         """ evaluate the electric field at x using linear interpolation of the gradient (half mesh)"""
         return np.interp(x,self.half_grid,self.efield)        
+        #return 2.*np.pi*np.sin(x*2.*np.pi)
 
     def eval_charge_density(self,x):
         """ evaluate the charge density at x using linear interpolation"""
         return np.interp(x,self.grid,self.charge_density)
+        #return 4.*np.pi**2*np.cos(x*2.*np.pi)
 
     def deposit(self,particles):
         """ deposit the charge from a particle type on the mesh points
@@ -98,7 +101,7 @@ class Efield:
         l=np.ones(N-1)
         g=-2.*np.ones(N)
         
-        rho=4.*np.pi*self.dx**2*np.copy(self.charge_density[1:-1])
+        rho=self.dx**2*np.copy(-self.charge_density[1:-1])
         
         # Dirichlet boundary condition on the right
         self.potential[-1]=self.V*np.cos(self.t*self.omega)
@@ -135,7 +138,7 @@ class Efield:
 
     def update_gradient(self):
         """ update the gradient of potential on half-mesh points. """
-        self.efield=np.diff(self.potential)/self.dx
+        self.efield=-np.diff(self.potential)/self.dx
 
         
     def push(self,dt):
@@ -182,6 +185,9 @@ class Species:
 
         # adding a small wave perturbations
         self.w+=wave_amplitude*np.cos(2*np.pi*self.y[:,0]*mode_number)
+        
+        # normalise weight so that sum is 1
+        self.w/=np.sum(self.w)
 
     def pos(self):
         """ position of particles """
@@ -190,6 +196,7 @@ class Species:
     def vel(self):
         """ velocity of particles """
         return self.y[:,1]
+    
     
     def push(self,dt,efield):
         """Push particles over time dt given electric field efield
@@ -253,3 +260,11 @@ class Plasma:
         
         return self.ion.q*np.sum(self.ion.w*self.ion.vel())+self.ele.q*np.sum(self.ele.w*self.ele.vel())
     
+    def hamiltonian(self):
+        """ total energy of the system."""
+        ekinion=0.5*self.ion.m*np.sum(self.ion.w*self.ion.vel()**2)
+        ekinelec=0.5*self.ele.m*np.sum(self.ele.w*self.ele.vel()**2)
+        ekinE=0.5*self.E.dx*np.sum(self.E.efield**2)
+        ecoupion=self.ion.q*np.sum(self.ion.w*self.E.eval_potential(self.ion.pos()))
+        ecoupele=self.ele.q*np.sum(self.ele.w*self.E.eval_potential(self.ele.pos()))
+        return ekinion+ekinelec+ecoupion+ecoupele+ekinE
