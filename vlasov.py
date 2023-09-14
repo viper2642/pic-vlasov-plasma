@@ -55,14 +55,8 @@ class Efield:
         self.potential=np.zeros(self.nmesh)
         self.charge_density=np.zeros(self.nmesh)
         self.efield=np.zeros(nintervals)
-<<<<<<< HEAD
-
         self.bcs=bcs_options[bcs]
-
-    
-=======
         self.half_grid=self.grid[0:-1]+0.5*self.dx
->>>>>>> a15a96602b195479e0811ea3cc8420aedcbeaecd
         
         ## LAPLACE OPERATOR of N-2 system (effectively without end-points)
         self._mat=-2*np.diagflat(np.ones(nintervals-1))+np.diagflat(np.ones(nintervals-2),1)+np.diagflat(np.ones(nintervals-2),-1)
@@ -204,17 +198,12 @@ class Species:
         self.y=np.asarray([np.random.rand(self.n)/2.,self.vth*np.random.randn(self.n)]).T
         self.w=np.ones(self.n)/self.n
 
-<<<<<<< HEAD
         # adding a small wave perturbations for electrons
         if charge<0 and wave_amplitude>0:
             self.w+=wave_amplitude*np.cos(2*np.pi*self.y[:,0]*mode_number)
         
         # normalise weight so that sum is 1
         self.w/=np.sum(self.w)
-=======
-        # adding a small wave perturbations
-        self.w+=wave_amplitude*np.cos(2*np.pi*self.y[:,0]*mode_number)
->>>>>>> a15a96602b195479e0811ea3cc8420aedcbeaecd
 
     def pos(self):
         """ position of particles """
@@ -248,10 +237,6 @@ class Species:
     def mirror(self):
         """ mirror particles within domain."""
         self.y[self.y[:,0]<0,:]*=-1
-        
-        if any(self.pos()<0):
-            print("hohoho")
-        
     
     
 class Plasma:
