@@ -30,7 +30,8 @@ class Efield:
     efield : value of gradient of potential on half-mesh points 
     
     """
-        
+    
+            
     def __init__(self,nintervals=100,voltage=0.,frequency=0.,bcs="Dirichlet"):
         """ 
         Parameters
@@ -42,7 +43,8 @@ class Efield:
         frequency : float (default 0.)
            frequency of alternating cosine Dirichlet potential
         """
-        
+
+        self.bcs=bcs_options[bcs]
         self.t=0.
         self.V=voltage
         self.omega=frequency
@@ -50,30 +52,56 @@ class Efield:
         self.nmesh=nintervals+1
         self.dx=1./nintervals
         self.grid=np.linspace(0.,1.,self.nmesh)
-        self.half_grid=self.grid[:-1]+0.5*self.dx
         self.potential=np.zeros(self.nmesh)
         self.charge_density=np.zeros(self.nmesh)
         self.efield=np.zeros(nintervals)
+<<<<<<< HEAD
 
         self.bcs=bcs_options[bcs]
 
     
+=======
+        self.half_grid=self.grid[0:-1]+0.5*self.dx
+>>>>>>> a15a96602b195479e0811ea3cc8420aedcbeaecd
         
+        ## LAPLACE OPERATOR of N-2 system (effectively without end-points)
+        self._mat=-2*np.diagflat(np.ones(nintervals-1))+np.diagflat(np.ones(nintervals-2),1)+np.diagflat(np.ones(nintervals-2),-1)
+        
+        if(self.bcs==1):
+            #Neumann on the left
+            self._mat[0,0]=-1
+
+        if(self.bcs==2):
+            self._mat[0,0]=-3
+            self._mat[0,1]=0
+            self._mat[-1,-1]=-3
+            self._mat[-1,-2]=0
+            self._mat[-1,:-2]=-1
+            self._mat[0,2:]=-1
+
+        self._invmat=np.linalg.inv(self._mat)
+                
         
     def eval_potential(self,x):
         """ evaluate the potential at x using linear interpolation"""
-        return np.interp(x,self.grid,self.potential)
-        #return np.cos(x*2.*np.pi)
+        if(self.bcs==2):
+            return np.interp(x,self.grid,self.potential,period=1.)
+        else:
+            return np.interp(x,self.grid,self.potential)
 
     def eval_field(self,x):
         """ evaluate the electric field at x using linear interpolation of the gradient (half mesh)"""
-        return np.interp(x,self.half_grid,self.efield)        
-        #return 2.*np.pi*np.sin(x*2.*np.pi)
+        if(self.bcs==2):
+            return np.interp(x,self.half_grid,self.efield,period=1.)
+        else:
+            return np.interp(x,self.half_grid,self.efield)
 
     def eval_charge_density(self,x):
         """ evaluate the charge density at x using linear interpolation"""
-        return np.interp(x,self.grid,self.charge_density)
-        #return 4.*np.pi**2*np.cos(x*2.*np.pi)
+        if(self.bcs==2):
+            return np.interp(x,self.grid,self.charge_density,period=1.)
+        else:
+            return np.interp(x,self.grid,self.charge_density)
 
     def deposit(self,particles):
         """ deposit the charge from a particle type on the mesh points
@@ -86,6 +114,10 @@ class Efield:
             self.charge_density[ind]+=(1.-percentage)*w*particles.q/self.dx
             self.charge_density[ind+1]+=percentage*w*particles.q/self.dx
 
+        if(self.bcs==2):
+            self.charge_density[0]+=self.charge_density[-1] # add deposition on last point which is same as first
+            self.charge_density[-1]=self.charge_density[0] # and match
+
 
     def solve(self):
         """ Solve the Poisson equation on mesh points
@@ -93,56 +125,41 @@ class Efield:
         Finite difference of d^2 P /dx^2 = rho becomes [l, g, u] P = rho 
         where tridiagonal matrix with g = -2 diagonal, u = 1 upper diagonal, l = 1 lower diagonal
         right-hand side vector rho. 
-        
-        Thomas algorithm is used to invert tridiagonal matrix.
         """
-        
-        N=self.nmesh-2
-
-        #Thomas algorithm        
-        u=np.ones(N-1)
-        l=np.ones(N-1)
-        g=-2.*np.ones(N)
-        
-        rho=self.dx**2*np.copy(-self.charge_density[1:-1])
-        
-        # Dirichlet boundary condition on the right
-        self.potential[-1]=self.V*np.cos(self.t*self.omega)
-        rho[-1]-=self.potential[-1]
-
-        if(self.bcs):
-            #Neumann on the left
-            g[0]=-1
-        
-        #initial step
-        u[0] = u[0]/g[0]
-        rho[0] = rho[0]/g[0]
-
-        # first pass
-        for i in range(1,N-1):
-            u[i] = u[i]/(g[i]-u[i-1]*l[i-1])
-        # second pass 
-        for i in range(1,N):
-            rho[i] = (rho[i]-rho[i-1]*l[i-1])/(g[i]-u[i-1]*l[i-1])
-        # solution on the penultimate grid point
-        self.potential[-2] = rho[-1]
-        # propagate solution backwards
-        for i in range(N-2,-1,-1):
-            self.potential[i+1] = rho[i] - u[i]*self.potential[i+2]
-
-
-        if(self.bcs):
-            # Neumann
-            self.potential[0]=self.potential[1]
+        if(self.bcs==2):
+            self.solve_periodic()
+        else:
+            self.solve_fixed()
         
         # compute gradient of potential on half-mesh
         self.update_gradient()
+
+    def solve_fixed(self):
+                
+        # right-hand side of NMESH-2 system
+        rho=self.dx**2*np.copy(self.charge_density[1:-1])
         
+        # Dirichlet boundary condition on the right
+        self.potential[-1]=self.V*np.cos(self.t*self.omega)
+        rho[-1]-=self.potential[-1] ## FEED RIGHT boundary condition into last source term !! important
+
+        self.potential[1:-1]=np.matmul(self._invmat,rho)
+        
+        if(self.bcs==1):
+            # Neumann
+            self.potential[0]=self.potential[1]
+
+    def solve_periodic(self):
+        # right-hand side source is over all NMESH-1 points (excluding repeated points, i.e. last=first)
+        rho=self.dx**2*np.copy(self.charge_density[:-1])
+        rho-=np.average(rho) ## avoid being in the kernel of singular matrix
+        self.potential[:-2]=np.matmul(self._invmat,rho[:-1]) ## solve over NMESH-2 points
+        self.potential[-2]=-np.sum(self.potential[:-2])   # condition on zero average of solution
+        self.potential[-1]=self.potential[0]  # periodicity
 
     def update_gradient(self):
         """ update the gradient of potential on half-mesh points. """
-        self.efield=-np.diff(self.potential)/self.dx
-
+        self.efield=-np.diff(self.potential)/self.dx        
         
     def push(self,dt):
         """ advance time by dt. """
@@ -187,12 +204,17 @@ class Species:
         self.y=np.asarray([np.random.rand(self.n)/2.,self.vth*np.random.randn(self.n)]).T
         self.w=np.ones(self.n)/self.n
 
+<<<<<<< HEAD
         # adding a small wave perturbations for electrons
         if charge<0 and wave_amplitude>0:
             self.w+=wave_amplitude*np.cos(2*np.pi*self.y[:,0]*mode_number)
         
         # normalise weight so that sum is 1
         self.w/=np.sum(self.w)
+=======
+        # adding a small wave perturbations
+        self.w+=wave_amplitude*np.cos(2*np.pi*self.y[:,0]*mode_number)
+>>>>>>> a15a96602b195479e0811ea3cc8420aedcbeaecd
 
     def pos(self):
         """ position of particles """
@@ -202,9 +224,8 @@ class Species:
         """ velocity of particles """
         return self.y[:,1]
     
-    
     def push(self,dt,efield):
-        """Push particles over time dt given electric field efield
+        """ Push particles over time dt given electric field efield
 
         Particle push is performed using 2nd order leap-frog
         algorithm. Particles that leave the domain are reinjected on
@@ -266,7 +287,6 @@ class Plasma:
         
     def particle_number(self):
         """ total particle number in the plasma."""
-        
         return np.sum(self.ion.w)+np.sum(self.ele.w)
 
     def global_charge(self):
@@ -274,15 +294,24 @@ class Plasma:
         return self.ion.q*np.sum(self.ion.w)+self.ele.q*np.sum(self.ele.w)
 
     def current(self):
-        """ total current in the plasma."""
-        
+        """ total current in the plasma."""        
         return self.ion.q*np.sum(self.ion.w*self.ion.vel())+self.ele.q*np.sum(self.ele.w*self.ele.vel())
+
+    def kin_ion(self):
+        return 0.5*self.ion.m*np.sum(self.ion.w*self.ion.vel()**2)
+
+    def kin_ele(self):
+        return 0.5*self.ele.m*np.sum(self.ele.w*self.ele.vel()**2)
+
+    def kin_field(self):
+        return 0.5*self.E.dx*np.sum(self.E.efield**2)
+
+    def pot_ion(self):
+        return self.ion.q*np.sum(self.ion.w*self.E.eval_potential(self.ion.pos()))
+
+    def pot_ele(self):
+        return self.ele.q*np.sum(self.ele.w*self.E.eval_potential(self.ele.pos()))
     
     def hamiltonian(self):
         """ total energy of the system."""
-        ekinion=0.5*self.ion.m*np.sum(self.ion.w*self.ion.vel()**2)
-        ekinelec=0.5*self.ele.m*np.sum(self.ele.w*self.ele.vel()**2)
-        ekinE=0.5*self.E.dx*np.sum(self.E.efield**2)
-        ecoupion=self.ion.q*np.sum(self.ion.w*self.E.eval_potential(self.ion.pos()))
-        ecoupele=self.ele.q*np.sum(self.ele.w*self.E.eval_potential(self.ele.pos()))
-        return ekinion+ekinelec+ecoupion+ecoupele+ekinE
+        return self.kin_ion()+self.kin_ele()+self.kin_field()+self.pot_ion()+self.pot_ele()
